@@ -167,6 +167,15 @@ function restrict_cart_quantity_to_one($cart_item_key, $quantity, $cart_item){
     }
 }
 
+add_filter('woocommerce_add_to_cart_validation', 'clear_cart_when_adding_restricted_product', 10, 3);
+function clear_cart_when_adding_restricted_product($passed, $product_id, $quantity) {
+    $restricted_ids = array(5303, 5301, 5302, 5300, 5633, 5631);
+    if (in_array($product_id, $restricted_ids)) {
+        WC()->cart->empty_cart();
+    }
+    return $passed;
+}
+
 add_action('template_redirect', 'redirect_logged_out_users_to_login');
 function redirect_logged_out_users_to_login(){
     if (!is_user_logged_in() && is_cart()){
@@ -220,13 +229,16 @@ function disable_place_order_button_for_logged_out_users(){
     }
 }
 
-add_action( 'woocommerce_order_status_changed', 'auto_complete_woocommerce_order', 10, 1 );
-function auto_complete_woocommerce_order( $order_id ) {
-    $order = new WC_Order( $order_id );
-    if ( $order->has_status( 'processing' ) && ! $order->has_shipping_address() ) {
-        $order->update_status( 'completed' );
+add_action('woocommerce_order_status_on-hold', 'force_order_to_completed');
+add_action('woocommerce_order_status_processing', 'force_order_to_completed');
+function force_order_to_completed($order_id) {
+    $order = wc_get_order($order_id);
+    if ( $order && in_array( $order->get_status(), ['on-hold', 'processing'])) {
+        $order->update_status('completed', 'Auto-completed from On-Hold or Processing');
     }
 }
+
+add_filter('woocommerce_allow_marketplace_suggestions', '__return_false');
 
 //Modify Ultimate Member
 add_filter('um_account_page_default_tabs_hook', 'um_account_custom_tabs', 100);
@@ -439,6 +451,4 @@ function um_woocommerce_orders_styles() {
     }
     </style>';
 }
-
-
 ?>
